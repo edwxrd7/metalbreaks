@@ -1,0 +1,32 @@
+<form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
+  <label for="photo">Upload a photo (JPEG/PNG, max 5MB):</label>
+  <input type="file" name="photo" id="photo" accept="image/jpeg, image/png" required>
+  <button type="submit">Upload</button>
+  <p id="error" style="color:red;"></p>
+</form>
+
+<script>
+  document.getElementById('uploadForm').addEventListener('submit', function (e) {
+    const fileInput = document.getElementById('photo');
+    const file = fileInput.files[0];
+    const errorText = document.getElementById('error');
+    errorText.textContent = '';
+
+    if (!file) {
+      errorText.textContent = 'Please choose a file.';
+      e.preventDefault();
+      return;
+    }
+
+    const validTypes = ['image/jpeg', 'image/png'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+
+    if (!validTypes.includes(file.type)) {
+      errorText.textContent = 'Only JPEG and PNG files are allowed.';
+      e.preventDefault();
+    } else if (file.size > maxSize) {
+      errorText.textContent = 'File size must be under 5MB.';
+      e.preventDefault();
+    }
+  });
+</script>
