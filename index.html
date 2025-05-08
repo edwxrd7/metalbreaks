@@ -1,39 +1,49 @@
-<form
-  action="https://formspree.io/f/xpwdrnnj"
-  method="POST"
-  enctype="multipart/form-data"
-  id="uploadForm">
+const express = require('express');
+const multer = require('multer');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const path = require('path');
+const app = express();
 
-  <label for="photo">Upload a photo (JPEG/PNG, max 5MB):</label>
-  <input type="file" name="photo" id="photo" accept="image/jpeg, image/png" required>
+// Security middleware
+app.use(helmet());
 
-  <input type="email" name="_replyto" placeholder="Your email (optional)">
-  <button type="submit">Send</button>
-  <p id="error" style="color: red;"></p>
-</form>
+// Rate limit to prevent abuse
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 20, // limit each IP to 20 requests per window
+}));
 
-<script>
-  document.getElementById('uploadForm').addEventListener('submit', function (e) {
-    const fileInput = document.getElementById('photo');
-    const file = fileInput.files[0];
-    const errorText = document.getElementById('error');
-    errorText.textContent = '';
+// Configure storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, 'uploads/'),
+  filename: (req, file, cb) => {
+    const safeName = file.originalname.replace(/[^a-z0-9.\-]/gi, '_');
+    cb(null, Date.now() + '_' + safeName);
+  }
+});
 
-    if (!file) {
-      errorText.textContent = 'Please choose a file.';
-      e.preventDefault();
-      return;
-    }
+// File filter
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png'];
+    if (allowedTypes.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Invalid file type'));
+  }
+});
 
-    const validTypes = ['image/jpeg', 'image/png'];
-    const maxSize = 5 * 1024 * 1024; // 5MB
+app.post('/upload', upload.single('photo'), (req, res) => {
+  res.send('File uploaded successfully!');
+});
 
-    if (!validTypes.includes(file.type)) {
-      errorText.textContent = 'Only JPEG and PNG files are allowed.';
-      e.preventDefault();
-    } else if (file.size > maxSize) {
-      errorText.textContent = 'File size must be under 5MB.';
-      e.preventDefault();
-    }
-  });
-</script>
+// Error handling
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError || err.message === 'Invalid file type') {
+    return res.status(400).send(err.message);
+  }
+  res.status(500).send('Something went wrong.');
+});
+
+app.listen(3000, () => console.log('Server running on http://localhost:3000'));
